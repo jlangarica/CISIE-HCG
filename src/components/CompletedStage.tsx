@@ -60,7 +60,7 @@ export default function CompletedStage({ formState, onReset, addToast }: Complet
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={handlePrint}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer"
             id="print-action-top"
           >
             <Printer className="w-4 h-4" />
@@ -78,7 +78,7 @@ export default function CompletedStage({ formState, onReset, addToast }: Complet
 
           <button
             onClick={onReset}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs rounded-xl transition-all cursor-pointer"
             id="new-query-btn"
           >
             <RefreshCw className="w-4 h-4" />
@@ -118,7 +118,7 @@ export default function CompletedStage({ formState, onReset, addToast }: Complet
         {/* HEADER METADATA TABLE */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs mb-8 border-b border-slate-100 pb-4">
           <div className="flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-indigo-600 shrink-0" />
+            <Calendar className="w-4 h-4 text-blue-800 shrink-0" />
             <div>
               <span className="text-[10px] text-slate-400 block font-sans">FECHA DE EMISIÓN</span>
               <strong className="text-slate-800 font-semibold">{currentDateString}</strong>
@@ -190,7 +190,7 @@ export default function CompletedStage({ formState, onReset, addToast }: Complet
             </h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <p><span className="text-slate-400 font-medium font-semibold">Costo Unitario Referencia:</span> <strong className="text-indigo-700 font-black">${formState.complementaria.costoReferencia || '0.00'} MXN</strong></p>
+                <p><span className="text-slate-400 font-medium font-semibold">Costo Unitario Referencia:</span> <strong className="text-blue-800 font-black">${formState.complementaria.costoReferencia || '0.00'} MXN</strong></p>
                 <p><span className="text-slate-400 font-medium">Proveedor de Referencia:</span> <strong className="text-slate-800 font-bold">{formState.complementaria.proveedor || 'N/A'}</strong></p>
                 <p>
                   <span className="text-slate-400 font-medium">Soporte Adjuntado:</span>{' '}

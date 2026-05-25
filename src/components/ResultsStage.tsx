@@ -77,7 +77,7 @@ export default function ResultsStage({ searchQuery, results, onBack, onNext }: R
           <div className="mt-6">
             <button
               onClick={onNext}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-semibold text-sm transition-colors shadow-sm cursor-pointer"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition-all duration-150 active:scale-98 shadow-sm cursor-pointer"
               id="proceed-free-btn"
             >
               Iniciar Solicitud de Clave
@@ -150,11 +150,11 @@ export default function ResultsStage({ searchQuery, results, onBack, onNext }: R
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700 text-sm">
                   {results.slice(0, 8).map((res, index) => (
-                    <tr key={index} className="hover:bg-slate-50 transition-colors" id={`row-item-${res.item.id}`}>
-                      <td className="py-3 md:py-4 px-4 md:px-6 font-mono font-semibold text-slate-900 text-xs truncate max-w-[150px]">
+                    <tr key={index} className="hover:bg-slate-50 transition-all text-xs sm:text-sm duration-100" id={`row-item-${res.item.id}`} style={{ animationDelay: `${index * 0.05}s` }}>
+                      <td data-label="Clave" className="py-3 md:py-4 px-4 md:px-6 font-mono font-bold text-slate-900 text-xs sm:text-right md:text-left">
                         {res.item.clave}
                       </td>
-                      <td className="py-3 md:py-4 px-4 md:px-6">
+                      <td data-label="Descripción" className="py-3 md:py-4 px-4 md:px-6 text-left">
                         <p className="font-semibold text-slate-800 leading-tight">{res.item.descripcion}</p>
                         <div className="flex flex-wrap items-center gap-2 mt-1 sm:mt-1.5">
                           <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
@@ -164,24 +164,24 @@ export default function ResultsStage({ searchQuery, results, onBack, onNext }: R
                             U. Medida: {res.item.unidadMedida}
                           </span>
                           {res.matchedTokens.length > 0 && (
-                            <span className="text-[10px] italic text-[#dc2626]">
-                              Tokens: {res.matchedTokens.join(', ')}
+                            <span className="text-[10px] font-medium text-blue-600/90 font-mono bg-blue-50/50 px-1.5 py-0.5 rounded border border-blue-100">
+                              Trigramas: {res.matchedTokens.join(', ')}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="py-3 md:py-4 px-4 md:px-6">
+                      <td data-label="Estado" className="py-3 md:py-4 px-4 md:px-6 sm:text-right md:text-left">
                         {res.item.estado === 'Activo' ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-green-50 text-green-700 border border-green-200">
                             Activo
                           </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-slate-50 text-slate-400 border border-slate-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-slate-50 text-slate-400 border border-slate-200">
                             Inactivo/Descontinuado
                           </span>
                         )}
                       </td>
-                      <td className="py-3 md:py-4 px-4 md:px-6 text-right whitespace-nowrap">
+                      <td data-label="Similitud" className="py-3 md:py-4 px-4 md:px-6 text-right whitespace-nowrap">
                         {getRiskBadge(res.similarity)}
                       </td>
                     </tr>
@@ -210,7 +210,7 @@ export default function ResultsStage({ searchQuery, results, onBack, onNext }: R
 
             <button
               onClick={onNext}
-              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-sm transition-colors shadow-md hover:shadow-lg cursor-pointer"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold text-sm transition-all duration-150 active:scale-98 shadow-md hover:shadow-lg cursor-pointer"
               id="continue-step-3"
             >
               Ninguno coincide - Solicitar inclusión de nueva clave

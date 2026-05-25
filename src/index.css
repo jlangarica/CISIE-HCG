@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -6,7 +6,223 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
-/* Custom Print optimization for HCG Request sheet */
+/* 1. SISTEMA DE DISEÑO & GRADIENTE DINÁMICO */
+@keyframes gradientBg {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-bg {
+  background: linear-gradient(-45deg, #e0f2fe, #f8fafc, #ffffff, #eff6ff);
+  background-size: 400% 400%;
+  animation: gradientBg 15s ease infinite;
+}
+
+/* 2. ELEVACIÓN DE TARJETA PRINCIPAL PREMIUM */
+.premium-main-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.05);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.premium-main-card:hover {
+  box-shadow: 0 15px 30px -5px rgba(15, 23, 42, 0.08), 
+              0 25px 60px -10px rgba(37, 99, 235, 0.12);
+  transform: translateY(-4px);
+}
+
+/* 3. STEPPER MINIMALISTA ANIMADO */
+.stepper-connector {
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: left;
+}
+
+/* 4. CAMPOS CON ETIQUETAS FLOTANTES (FLOATING LABELS) */
+.floating-label-group {
+  position: relative;
+}
+
+.floating-input {
+  width: 100%;
+  padding: 18px 16px 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background-color: #ffffff;
+  color: #1e293b;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.15s ease-in-out;
+}
+
+.floating-input:focus {
+  border-color: #2563eb;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+.floating-label {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  color: #94a3b8;
+  font-size: 14px;
+  pointer-events: none;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: translateY(0);
+}
+
+/* Float label top when input has text or is focused */
+.floating-input:focus ~ .floating-label,
+.floating-input:not(:placeholder-shown) ~ .floating-label {
+  top: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Label shifted slightly when there is error icon/padding or active outline */
+.floating-label-group-error .floating-input {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+.floating-label-group-error .floating-label {
+  color: #ef4444;
+}
+
+/* 5. DISEÑO DE EXPANSIÓN VERTICAL SUAVE (CSS GRID) */
+.collapsible-grid {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.collapsible-grid-open {
+  grid-template-rows: 1fr;
+}
+
+.collapsible-inner {
+  min-height: 0;
+}
+
+/* 6. SKELETONS DE CARGA PULSANTES */
+@keyframes skeletonPulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.95;
+    background-color: #e2e8f0;
+  }
+}
+
+.skeleton-bar {
+  background-color: #f1f5f9;
+  border-radius: 4px;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* 7. TRANSICIÓN DE PANTALLAS (FASES DESPLAZAMIENTO HACIA ARRIBA) */
+@keyframes slideInForward {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.phase-transition-card {
+  animation: slideInForward 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 8. ADAPTABILIDAD DE TABLAS (MOBILE FIRST CON data-label) */
+@media (max-width: 640px) {
+  #results-table, 
+  #results-table thead, 
+  #results-table tbody, 
+  #results-table th, 
+  #results-table td, 
+  #results-table tr {
+    display: block;
+  }
+  
+  #results-table thead {
+    display: none; /* Hide header completely */
+  }
+  
+  #results-table tbody tr {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.01);
+  }
+  
+  #results-table td {
+    padding: 8px 4px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    text-align: right;
+  }
+  
+  #results-table td:last-child {
+    border-bottom: none;
+  }
+  
+  /* Auto generate the headers using CSS with data-label */
+  #results-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #94a3b8;
+    font-size: 11px;
+    text-transform: uppercase;
+    margin-right: 8px;
+    text-align: left;
+  }
+}
+
+/* 9. DEGRADACIÓN GRACIOSA DE MOVIMIENTO REDUCIDO */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-delay: 0s !important;
+    animation-duration: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+    transform: none !important;
+  }
+  
+  .animate-gradient-bg {
+    background: #f8fafc !important;
+    animation: none !important;
+  }
+  
+  .skeleton-bar {
+    animation: none !important;
+    background-color: #e2e8f0 !important;
+  }
+}
+
+/* 10. OPTIMIZACIÓN DE IMPRESIÓN SÁBANA DE COBROS */
 @media print {
   body {
     background: white !important;
@@ -17,6 +233,9 @@
   #hcg-stepper-progress,
   #hcg-toast-container,
   #success-visual-header,
+  #print-action-top,
+  #download-action-pdf,
+  #new-query-btn,
   footer {
     display: none !important;
   }
@@ -28,10 +247,5 @@
     margin: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
-  }
-
-  main {
-    padding: 0 !important;
-    margin: 0 !important;
   }
 }

@@ -1,31 +1,49 @@
 import React from 'react';
-import { Building2, ShieldAlert } from 'lucide-react';
+import { SearchCheck } from 'lucide-react';
 
 export default function Header() {
   return (
-    <header className="bg-[#1e293b] text-white border-b border-slate-700 shadow-sm" id="hcg-app-header">
-      <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-red-700 text-white p-2.5 rounded-lg flex items-center justify-center shadow-inner" id="hcg-shield-logo">
-            <Building2 className="w-6 h-6" />
-          </div>
+    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-4" id="hcg-app-header">
+      {/* Institutional Top Bar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between border-b border-slate-200 pb-4 mb-6 gap-4">
+        <div className="flex items-center gap-4 self-start sm:self-auto">
+          <img
+            src="https://portal.hcg.gob.mx/hcg/sites/hcgtransparencia.dd/files/styles/boletines_galeria_eventos/public/imgEventosCS/Logotipo%20HCG_17.jpg?itok=Hix5xedr"
+            alt="Logo HCG"
+            className="h-12 w-auto object-contain rounded shadow-xs"
+            referrerPolicy="no-referrer"
+          />
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold tracking-widest text-red-500 uppercase">HCG</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-              <span className="text-xs font-medium text-slate-400">Hospital Civil de Guadalajara</span>
+            <div className="text-xs sm:text-sm font-bold text-slate-950 tracking-wider uppercase">
+              OPD Hospital Civil de Guadalajara
             </div>
-            <h1 className="text-lg sm:text-xl font-bold text-slate-100 tracking-tight" id="main-title">
-              Verificador de Catálogo Institucional
-            </h1>
+            <div className="text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide">
+              División de Servicios Administrativos
+            </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-3 bg-[#111827] px-4 py-1.5 rounded-full border border-slate-700 text-xs text-slate-300">
-          <ShieldAlert className="w-4 h-4 text-amber-500 inline-block shrink-0 animate-pulse" />
-          <span>Filtro Normativo Contra Duplicados (Art. 42 LADS)</span>
+        
+        <div className="flex items-center gap-4 self-end sm:self-auto text-right">
+          <div className="hidden sm:block">
+            <span className="text-[10px] block text-slate-400 uppercase tracking-widest font-bold">Usuario Conectado</span>
+            <span className="text-xs font-semibold text-slate-700">Dr. Julián Ramírez Pérez</span>
+          </div>
+          <span className="bg-slate-100 text-slate-600 border border-slate-200 text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">
+            CISIE
+          </span>
         </div>
       </div>
-    </header>
+
+      {/* Hero Title Section */}
+      <div className="text-center my-4 sm:my-8">
+        <h1 className="text-xl sm:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center justify-center gap-2 sm:gap-3">
+          <SearchCheck className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600 shrink-0" />
+          <span>Catálogo de Bienes, Servicios y Activos</span>
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-2 font-medium max-w-2xl mx-auto">
+          Comité de Insumos, Servicios, Infraestructura y Equipamiento
+        </p>
+      </div>
+    </div>
   );
 }

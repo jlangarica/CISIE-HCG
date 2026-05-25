@@ -42,11 +42,41 @@ export default function FormStage({
   // Field validation visual triggers
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
   useEffect(() => {
     // Fire smart assistant upon entering Paso 4, using original terms searched
     if (originalSearchQuery) {
-      const rec = getSmartRecommendations(originalSearchQuery);
-      setAiRecommendation(rec);
+      const fetchAiRecommendation = async () => {
+        setIsAiLoading(true);
+        try {
+          const res = await fetch("/api/sugerir-ia", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: originalSearchQuery }),
+          });
+          const data = await res.json();
+          if (data.success && data.recommendation) {
+            setAiRecommendation(data.recommendation);
+            addToast("Asistente Inteligente HCG: Catálogo analizado en tiempo real.", "success");
+          } else {
+            // Check if fallback needed due to lack of API key or other things
+            const localRec = getSmartRecommendations(originalSearchQuery);
+            setAiRecommendation(localRec);
+            if (data.fallback) {
+              addToast(data.message, "warning");
+            }
+          }
+        } catch (err) {
+          console.error("AI fetch failed, falling back to local analysis:", err);
+          const localRec = getSmartRecommendations(originalSearchQuery);
+          setAiRecommendation(localRec);
+        } finally {
+          setIsAiLoading(false);
+        }
+      };
+
+      fetchAiRecommendation();
     }
   }, [originalSearchQuery]);
 
@@ -234,81 +264,74 @@ export default function FormStage({
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-6" id="form-stage-container">
+      {/* 0. AI LOADER BANNER */}
+      {isAiLoading && (
+        <div 
+          className="flex items-center gap-3 p-4 bg-blue-50/80 border border-blue-200/50 rounded-2xl mb-6 text-sm text-blue-700 font-medium animate-pulse" 
+          id="iaLoaderBanner"
+        >
+          <div className="w-5 h-5 border-3 border-blue-200 border-t-blue-600 rounded-full animate-spin" aria-hidden="true" />
+          <span>Estandarizando propuesta técnica automatizada con IA en segundo plano...</span>
+        </div>
+      )}
+
       {/* 1. SMART AI RECOMMENDATION BANNER */}
       {aiRecommendation && showAiBanner && (
         <div 
-          className="bg-radial from-[#1e1b4b] to-[#311042] text-white border border-[#4c1d95] rounded-3xl p-6 mb-8 shadow-xl relative overflow-hidden" 
+          className="border-2 border-green-500 bg-green-50 p-6 rounded-2xl shadow-xs flex flex-col gap-3 mb-8" 
           id="smart-assistant-banner"
         >
-          <div className="absolute right-[-20px] top-[-20px] w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute left-[-20px] bottom-[-20px] w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="flex items-center gap-2 text-green-700">
+            <Sparkles className="w-5 h-5 text-green-600 animate-pulse" />
+            <h3 className="font-bold text-sm uppercase tracking-wider">Asistente de Estandarización Inteligente</h3>
+            <span className="text-xs text-green-600/80 ml-auto">Confianza: {aiRecommendation.confianza}%</span>
+          </div>
+          
+          <p className="text-xs text-slate-600 leading-relaxed">
+            He analizado tu solicitud basada en la consulta de búsqueda inicial "{originalSearchQuery}". Para cumplir con los estrictos estándares de homologación del hospital, sugiero la siguiente redacción institucional y clasificaciones técnicas:
+          </p>
 
-          <div className="flex flex-col md:flex-row items-start gap-5 relative z-10">
-            <div className="bg-linear-to-tr from-indigo-500 to-purple-500 p-3 rounded-2xl shadow-md shrink-0 flex items-center justify-center">
-              <Sparkles className="w-6 h-6 text-yellow-300 animate-pulse" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white p-3.5 rounded-xl border border-green-200 text-xs font-mono text-slate-800 leading-normal">
+              <span className="text-[9px] uppercase font-bold text-green-700 block mb-1 font-sans">Redacción Estandarizada</span>
+              <span className="font-bold">{aiRecommendation.descripcionEstandarizada}</span>
             </div>
             
-            <div className="flex-1 space-y-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="bg-yellow-400 text-[#1e1b4b] text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    Asistente Inteligente HCG
-                  </span>
-                  <span className="text-xs text-slate-300">Confianza de acierto: {aiRecommendation.confianza}%</span>
-                </div>
-                <h3 className="text-lg font-bold text-slate-100 tracking-tight mt-1">
-                  Recomendaciones basadas en su búsqueda: "{originalSearchQuery}"
-                </h3>
+            <div className="bg-white p-3.5 rounded-xl border border-green-200 text-xs text-slate-705 space-y-1">
+              <span className="text-[9px] uppercase font-bold text-green-700 block mb-1">Estructura Presupuestal</span>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Familia:</span>
+                <span className="font-bold text-slate-800 text-[11px] truncate max-w-[150px]">{aiRecommendation.familiaRecomendada}</span>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs bg-black/30 p-4 rounded-xl border border-slate-700/60 font-medium">
-                <div>
-                  <span className="text-slate-400 block font-normal">Nomenclatura Internacional Propuesta:</span>
-                  <span className="text-amber-300 font-bold block mt-1 text-sm">
-                    {aiRecommendation.descripcionEstandarizada}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <span className="text-slate-400 block font-normal">Familia Sugerida:</span>
-                    <span className="text-slate-200 block mt-0.5 font-bold truncate">
-                      {aiRecommendation.familiaRecomendada}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block font-normal">Partida Presupuestal:</span>
-                    <span className="text-slate-200 block mt-0.5 font-bold truncate">
-                      {aiRecommendation.partidaRecomendada}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={handleApplyAi}
-                  disabled={aiApplied}
-                  className={`px-4 py-2 text-xs font-bold rounded-lg flex items-center gap-2 shadow-sm cursor-pointer transition-all ${
-                    aiApplied 
-                      ? 'bg-emerald-600 text-white cursor-default' 
-                      : 'bg-white hover:bg-slate-100 text-slate-900'
-                  }`}
-                  id="btn-apply-ai"
-                >
-                  {aiApplied ? <Check className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
-                  {aiApplied ? 'Sugerencias Aplicadas con Éxito' : 'Aplicar Sugerencia al Formulario'}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleRejectAi}
-                  className="px-3.5 py-2 text-xs font-bold text-slate-300 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
-                  id="btn-reject-ai"
-                >
-                  Omitir Asistente
-                </button>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Partida:</span>
+                <span className="font-bold text-slate-800 text-[11px] truncate max-w-[150px]">{aiRecommendation.partidaRecomendada}</span>
               </div>
             </div>
+          </div>
+
+          <div className="flex gap-2 pt-1.5">
+            <button
+              type="button"
+              onClick={handleApplyAi}
+              disabled={aiApplied}
+              className={`text-xs font-bold py-2 px-4 rounded uppercase transition-colors cursor-pointer ${
+                aiApplied
+                  ? 'bg-green-700 text-white cursor-default'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+              id="btn-apply-ai"
+            >
+              {aiApplied ? '✓ Sugerencia Aplicada' : 'Aplicar Sugerencia'}
+            </button>
+            <button
+              type="button"
+              onClick={handleRejectAi}
+              className="px-4 py-2 border border-slate-300 text-slate-500 text-xs font-bold rounded uppercase hover:bg-slate-50 cursor-pointer"
+              id="btn-reject-ai"
+            >
+              Ignorar
+            </button>
           </div>
         </div>
       )}
@@ -321,30 +344,28 @@ export default function FormStage({
           {/* SECTION 1: DATOS DEL ARTÍCULO */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs relative" id="panel-articulo">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-5">
-              <Clipboard className="w-5 h-5 text-indigo-600" />
+              <Clipboard className="w-5 h-5 text-blue-800" />
               <h3 className="text-lg font-bold text-slate-800">1. Identificación del Artículo Solicitado</h3>
             </div>
 
-            <div className="space-y-4">
-              {/* Descripción */}
+            <div className="space-y-6">
+              {/* Descripción con Floating Label */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Descripción Técnica Completa <span className="text-[#dc2626]">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formState.articulo.descripcion}
-                  onChange={(e) => {
-                    setFormState(prev => ({ ...prev, articulo: { ...prev.articulo, descripcion: e.target.value } }));
-                    if (errors.desc) setErrors(prev => ({ ...prev, desc: '' }));
-                    if (aiApplied) setAiApplied(false);
-                  }}
-                  className={`w-full px-4 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all ${
-                    errors.desc ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
-                  }`}
-                  placeholder="Denominación técnica, principio activo o genérico, dosis o medida..."
-                  id="form-desc"
-                />
+                <div className={`floating-label-group ${errors.desc ? 'floating-label-group-error' : ''}`}>
+                  <input
+                    type="text"
+                    value={formState.articulo.descripcion}
+                    onChange={(e) => {
+                      setFormState(prev => ({ ...prev, articulo: { ...prev.articulo, descripcion: e.target.value } }));
+                      if (errors.desc) setErrors(prev => ({ ...prev, desc: '' }));
+                      if (aiApplied) setAiApplied(false);
+                    }}
+                    className="floating-input"
+                    placeholder=" "
+                    id="form-desc"
+                  />
+                  <label className="floating-label">Descripción Técnica Completa *</label>
+                </div>
                 {errors.desc ? (
                   <p className="text-xs text-red-500 font-medium mt-1">{errors.desc}</p>
                 ) : (
@@ -357,8 +378,8 @@ export default function FormStage({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Familia */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Familia de Insumos <span className="text-[#dc2626]">*</span>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Familia de Insumos *
                   </label>
                   <select
                     value={formState.articulo.familia}
@@ -366,7 +387,7 @@ export default function FormStage({
                       setFormState(prev => ({ ...prev, articulo: { ...prev.articulo, familia: e.target.value } }));
                       if (errors.familia) setErrors(prev => ({ ...prev, familia: '' }));
                     }}
-                    className={`w-full px-3 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all cursor-pointer ${
+                    className={`w-full px-3 py-2.5 rounded-lg border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-800 focus:outline-none transition-all cursor-pointer ${
                       errors.familia ? 'border-red-500' : 'border-slate-200'
                     }`}
                     id="form-familia"
@@ -381,8 +402,8 @@ export default function FormStage({
 
                 {/* Partida Presupuestal */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Partida Presupuestal Autorizada <span className="text-[#dc2626]">*</span>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Partida Presupuestal Autorizada *
                   </label>
                   <select
                     value={formState.articulo.partida}
@@ -390,7 +411,7 @@ export default function FormStage({
                       setFormState(prev => ({ ...prev, articulo: { ...prev.articulo, partida: e.target.value } }));
                       if (errors.partida) setErrors(prev => ({ ...prev, partida: '' }));
                     }}
-                    className={`w-full px-3 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all cursor-pointer ${
+                    className={`w-full px-3 py-2.5 rounded-lg border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-800 focus:outline-none transition-all cursor-pointer ${
                       errors.partida ? 'border-red-500' : 'border-slate-200'
                     }`}
                     id="form-partida"
@@ -409,8 +430,8 @@ export default function FormStage({
               {/* Unidad de medida */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Unidad de Medida / Presentación <span className="text-[#dc2626]">*</span>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    Unidad de Medida / Presentación *
                   </label>
                   <select
                     value={formState.articulo.unidadMedida}
@@ -418,7 +439,7 @@ export default function FormStage({
                       setFormState(prev => ({ ...prev, articulo: { ...prev.articulo, unidadMedida: e.target.value } }));
                       if (errors.unidad) setErrors(prev => ({ ...prev, unidad: '' }));
                     }}
-                    className={`w-full px-3 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all cursor-pointer ${
+                    className={`w-full px-3 py-2.5 rounded-lg border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-800 focus:outline-none transition-all cursor-pointer ${
                       errors.unidad ? 'border-red-500' : 'border-slate-200'
                     }`}
                     id="form-unidad"
@@ -431,27 +452,26 @@ export default function FormStage({
                   {errors.unidad && <p className="text-xs text-red-500 font-medium mt-1">{errors.unidad}</p>}
                 </div>
 
-                {formState.articulo.unidadMedida === 'Otro (Especificar)' && (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Especifique Unidad de Medida <span className="text-[#dc2626]">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={formState.articulo.unidadMedidaOtro || ''}
-                      onChange={(e) => {
-                        setFormState(prev => ({ ...prev, articulo: { ...prev.articulo, unidadMedidaOtro: e.target.value } }));
-                        if (errors.unidadOtro) setErrors(prev => ({ ...prev, unidadOtro: '' }));
-                      }}
-                      className={`w-full px-4 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all ${
-                        errors.unidadOtro ? 'border-red-500 bg-red-50/20' : 'border-slate-200'
-                      }`}
-                      placeholder="Escriba la unidad customizada..."
-                      id="form-unidad-otro"
-                    />
+                {/* ANIMATED GRID EXPANSION FOR CUSTOM UNIT */}
+                <div className={`collapsible-grid md:col-span-1 ${formState.articulo.unidadMedida === 'Otro (Especificar)' ? 'collapsible-grid-open' : ''}`}>
+                  <div className="collapsible-inner pt-4 md:pt-0">
+                    <div className={`floating-label-group ${errors.unidadOtro ? 'floating-label-group-error' : ''}`}>
+                      <input
+                        type="text"
+                        value={formState.articulo.unidadMedidaOtro || ''}
+                        onChange={(e) => {
+                          setFormState(prev => ({ ...prev, articulo: { ...prev.articulo, unidadMedidaOtro: e.target.value } }));
+                          if (errors.unidadOtro) setErrors(prev => ({ ...prev, unidadOtro: '' }));
+                        }}
+                        className="floating-input"
+                        placeholder=" "
+                        id="form-unidad-otro"
+                      />
+                      <label className="floating-label">Especifique Unidad de Medida *</label>
+                    </div>
                     {errors.unidadOtro && <p className="text-xs text-red-500 font-medium mt-1">{errors.unidadOtro}</p>}
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
@@ -459,83 +479,77 @@ export default function FormStage({
           {/* SECTION 2: DATOS DEL SOLICITANTE */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs" id="panel-solicitante">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-5">
-              <User className="w-5 h-5 text-indigo-600" />
+              <User className="w-5 h-5 text-blue-800" />
               <h3 className="text-lg font-bold text-slate-800">2. Identificación del Funcionario Solicitante</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Nombre Completo <span className="text-[#dc2626]">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formState.solicitante.nombre}
-                  onChange={(e) => {
-                    setFormState(prev => ({ ...prev, solicitante: { ...prev.solicitante, nombre: e.target.value } }));
-                    if (errors.solNombre) setErrors(prev => ({ ...prev, solNombre: '' }));
-                  }}
-                  className={`w-full px-4 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all ${
-                    errors.solNombre ? 'border-red-500' : 'border-slate-200'
-                  }`}
-                  placeholder="Nombre completo y apellidos"
-                  id="form-sol-nombre"
-                />
+                <div className={`floating-label-group ${errors.solNombre ? 'floating-label-group-error' : ''}`}>
+                  <input
+                    type="text"
+                    value={formState.solicitante.nombre}
+                    onChange={(e) => {
+                      setFormState(prev => ({ ...prev, solicitante: { ...prev.solicitante, nombre: e.target.value } }));
+                      if (errors.solNombre) setErrors(prev => ({ ...prev, solNombre: '' }));
+                    }}
+                    className="floating-input"
+                    placeholder=" "
+                    id="form-sol-nombre"
+                  />
+                  <label className="floating-label">Nombre Completo del Solicitante *</label>
+                </div>
                 {errors.solNombre && <p className="text-xs text-red-500 font-medium mt-1">{errors.solNombre}</p>}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Cargo Formal <span className="text-[#dc2626]">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formState.solicitante.cargo}
-                  onChange={(e) => {
-                    setFormState(prev => ({ ...prev, solicitante: { ...prev.solicitante, cargo: e.target.value } }));
-                    if (errors.solCargo) setErrors(prev => ({ ...prev, solCargo: '' }));
-                  }}
-                  className={`w-full px-4 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all ${
-                    errors.solCargo ? 'border-red-500' : 'border-slate-200'
-                  }`}
-                  placeholder="Ej: Jefe de Quirófanos, Coordinador de Abasto"
-                  id="form-sol-cargo"
-                />
+                <div className={`floating-label-group ${errors.solCargo ? 'floating-label-group-error' : ''}`}>
+                  <input
+                    type="text"
+                    value={formState.solicitante.cargo}
+                    onChange={(e) => {
+                      setFormState(prev => ({ ...prev, solicitante: { ...prev.solicitante, cargo: e.target.value } }));
+                      if (errors.solCargo) setErrors(prev => ({ ...prev, solCargo: '' }));
+                    }}
+                    className="floating-input"
+                    placeholder=" "
+                    id="form-sol-cargo"
+                  />
+                  <label className="floating-label">Cargo Formal *</label>
+                </div>
                 {errors.solCargo && <p className="text-xs text-red-500 font-medium mt-1">{errors.solCargo}</p>}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Servicio Clínico / Departamento <span className="text-[#dc2626]">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formState.solicitante.servicio}
-                  onChange={(e) => {
-                    setFormState(prev => ({ ...prev, solicitante: { ...prev.solicitante, servicio: e.target.value } }));
-                    if (errors.solServicio) setErrors(prev => ({ ...prev, solServicio: '' }));
-                  }}
-                  className={`w-full px-4 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all ${
-                    errors.solServicio ? 'border-red-500' : 'border-slate-200'
-                  }`}
-                  placeholder="Ej: Urgencias Adultos, Unidad de Terapia Intensiva"
-                  id="form-sol-servicio"
-                />
+                <div className={`floating-label-group ${errors.solServicio ? 'floating-label-group-error' : ''}`}>
+                  <input
+                    type="text"
+                    value={formState.solicitante.servicio}
+                    onChange={(e) => {
+                      setFormState(prev => ({ ...prev, solicitante: { ...prev.solicitante, servicio: e.target.value } }));
+                      if (errors.solServicio) setErrors(prev => ({ ...prev, solServicio: '' }));
+                    }}
+                    className="floating-input"
+                    placeholder=" "
+                    id="form-sol-servicio"
+                  />
+                  <label className="floating-label">Servicio Clínico / Departamento *</label>
+                </div>
                 {errors.solServicio && <p className="text-xs text-red-500 font-medium mt-1">{errors.solServicio}</p>}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Unidad Hospitalaría HCG <span className="text-[#dc2626]">*</span>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                  Unidad Hospitalaría HCG *
                 </label>
                 <select
                   value={formState.solicitante.unidadHospitalaria}
                   onChange={(e) => {
                     setFormState(prev => ({ ...prev, solicitante: { ...prev.solicitante, unidadHospitalaria: e.target.value as any } }));
                   }}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all cursor-pointer"
+                  className="w-full px-3 py-2.5 rounded-lg border border-slate-200 bg-white text-slate-800 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-800 focus:outline-none transition-all cursor-pointer"
                   id="form-sol-unidad"
                 >
                   {UNIDADES_HOSPITALARIAS.map((uni, i) => (
@@ -549,19 +563,13 @@ export default function FormStage({
           {/* SECTION 3: DATOS COMPLEMENTARIOS */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs" id="panel-complemento">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-5">
-              <DollarSign className="w-5 h-5 text-indigo-600" />
+              <DollarSign className="w-5 h-5 text-blue-800" />
               <h3 className="text-lg font-bold text-slate-800">3. Información Económica e Institucional</h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Costo de Referencia Unitario (MXN) <span className="text-[#dc2626]">*</span>
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500 font-semibold text-sm">
-                    $
-                  </div>
+                <div className={`floating-label-group ${errors.costo ? 'floating-label-group-error' : ''}`}>
                   <input
                     type="text"
                     value={formState.complementaria.costoReferencia}
@@ -569,42 +577,40 @@ export default function FormStage({
                       setFormState(prev => ({ ...prev, complementaria: { ...prev.complementaria, costoReferencia: e.target.value } }));
                       if (errors.costo) setErrors(prev => ({ ...prev, costo: '' }));
                     }}
-                    className={`w-full pl-8 pr-4 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all ${
-                      errors.costo ? 'border-red-500' : 'border-slate-200'
-                    }`}
-                    placeholder="0.00"
+                    className="floating-input pl-8"
+                    placeholder=" "
                     id="form-costo"
                   />
+                  <div className="absolute left-4 top-[17px] text-slate-500 font-semibold text-sm pointer-events-none">$</div>
+                  <label className="floating-label pl-4">Costo de Referencia Unitario (MXN) *</label>
                 </div>
                 {errors.costo ? (
                   <p className="text-xs text-red-500 font-medium mt-1">{errors.costo}</p>
                 ) : (
-                  <p className="text-[11px] text-slate-400 mt-1">Costo según cotización formal del mercado.</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Costo según cotización formal de mercado.</p>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                  Proveedor Sugerido / Marca <span className="text-[#dc2626]">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formState.complementaria.proveedor}
-                  onChange={(e) => {
-                    setFormState(prev => ({ ...prev, complementaria: { ...prev.complementaria, proveedor: e.target.value } }));
-                    if (errors.proveedor) setErrors(prev => ({ ...prev, proveedor: '' }));
-                  }}
-                  className={`w-full px-4 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all ${
-                    errors.proveedor ? 'border-red-500' : 'border-slate-200'
-                  }`}
-                  placeholder="Ej: Distribuidora Médica del Occidente S.A."
-                  id="form-proveedor"
-                />
+                <div className={`floating-label-group ${errors.proveedor ? 'floating-label-group-error' : ''}`}>
+                  <input
+                    type="text"
+                    value={formState.complementaria.proveedor}
+                    onChange={(e) => {
+                      setFormState(prev => ({ ...prev, complementaria: { ...prev.complementaria, proveedor: e.target.value } }));
+                      if (errors.proveedor) setErrors(prev => ({ ...prev, proveedor: '' }));
+                    }}
+                    className="floating-input"
+                    placeholder=" "
+                    id="form-proveedor"
+                  />
+                  <label className="floating-label">Proveedor Sugerido / Marca *</label>
+                </div>
                 {errors.proveedor && <p className="text-xs text-red-500 font-medium mt-1">{errors.proveedor}</p>}
               </div>
             </div>
 
-            <div className="mt-4">
+            <div className="mt-5">
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
                 Justificación Técnica Completa <span className="text-[#dc2626]">*</span>
               </label>
@@ -615,7 +621,7 @@ export default function FormStage({
                   if (errors.justificacion) setErrors(prev => ({ ...prev, justificacion: '' }));
                 }}
                 rows={4}
-                className={`w-full px-4 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-indigo-100 focus:border-indigo-600 focus:outline-none transition-all resize-none ${
+                className={`w-full px-4 py-2.5 rounded-xl border bg-white text-slate-800 text-sm focus:ring-4 focus:ring-blue-100 focus:border-blue-800 focus:outline-none transition-all resize-none ${
                   errors.justificacion ? 'border-red-500 bg-red-50/10' : 'border-slate-200'
                 }`}
                 placeholder="Por qué este insumo clínico es estrictamente indispensable para el hospital frente a otras soluciones en stock..."
@@ -639,7 +645,7 @@ export default function FormStage({
           {/* DRAG AND DROP FILE UPLOAD AREA */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs flex flex-col" id="panel-upload">
             <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider mb-3 flex items-center gap-2">
-              <Upload className="w-4 h-4 text-indigo-600" />
+              <Upload className="w-4 h-4 text-blue-800" />
               Documentación Obligatoria
             </h3>
             
@@ -651,9 +657,11 @@ export default function FormStage({
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer flex flex-col items-center justify-center relative ${
-                isDragging 
-                  ? 'border-indigo-600 bg-indigo-50/50' 
+              className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all duration-300 cursor-pointer flex flex-col items-center justify-center relative ${
+                formState.complementaria.pdfCargado
+                  ? 'border-emerald-500 bg-emerald-50/30'
+                  : isDragging
+                  ? 'border-blue-800 bg-blue-50/40 animate-pulse scale-[1.01]'
                   : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/50'
               }`}
               onClick={() => document.getElementById('hidden-file-input')?.click()}
@@ -669,7 +677,7 @@ export default function FormStage({
 
               {!formState.complementaria.pdfCargado && uploadProgress === null ? (
                 <>
-                  <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 mb-3">
+                  <div className="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-800 mb-3">
                     <Upload className="w-5 h-5" />
                   </div>
                   <span className="text-xs font-bold text-slate-800">
@@ -684,12 +692,12 @@ export default function FormStage({
                 </>
               ) : uploadProgress !== null ? (
                 <div className="w-full text-center py-4">
-                  <div className="w-12 h-12 rounded-full border-4 border-indigo-200 border-t-indigo-600 animate-spin mx-auto mb-3" />
+                  <div className="w-12 h-12 rounded-full border-4 border-blue-200 border-t-blue-800 animate-spin mx-auto mb-3" />
                   <span className="text-xs font-bold text-slate-700 block">
                     Cargando y firmando archivo...
                   </span>
                   <div className="w-full bg-slate-100 h-1.5 rounded-full mt-3 max-w-xs mx-auto overflow-hidden">
-                    <div className="bg-indigo-600 h-full transition-all" style={{ width: `${uploadProgress}%` }} />
+                    <div className="bg-blue-800 h-full transition-all" style={{ width: `${uploadProgress}%` }} />
                   </div>
                 </div>
               ) : (
@@ -762,7 +770,7 @@ export default function FormStage({
 
         <button
           onClick={handleNextSubmit}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-extrabold text-sm transition-all shadow-md hover:shadow-lg cursor-pointer"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold text-sm transition-all duration-150 active:scale-98 shadow-md hover:shadow-lg cursor-pointer"
           id="btn-submit-form"
         >
           Generar Formato de Inclusión

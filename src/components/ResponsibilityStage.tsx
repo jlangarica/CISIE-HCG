@@ -24,9 +24,8 @@ export default function ResponsibilityStage({ onBack, onNext, addToast }: Respon
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8" id="responsibility-stage-container">
-      <div className="text-center mb-8">
-        <div className="inline-flex p-3 bg-indigo-50 border border-indigo-100 rounded-full text-indigo-600 mb-3">
+    <div className="max-w-3xl mx-auto px-4 py-8" id="responsibility-stage-container">      <div className="text-center mb-8">
+        <div className="inline-flex p-3 bg-blue-50 border border-blue-100 rounded-full text-blue-800 mb-3">
           <ShieldCheck className="w-8 h-8" />
         </div>
         <h2 className="text-2xl font-bold text-slate-800 tracking-tight" id="resp-title">
@@ -55,7 +54,7 @@ export default function ResponsibilityStage({ onBack, onNext, addToast }: Respon
           <label 
             className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${
               checked1 
-                ? 'bg-indigo-50/50 border-indigo-200 shadow-xs' 
+                ? 'bg-blue-50/50 border-blue-200 shadow-xs' 
                 : 'bg-white border-slate-200 hover:border-slate-300'
             }`}
             id="lbl-check1"
@@ -64,7 +63,7 @@ export default function ResponsibilityStage({ onBack, onNext, addToast }: Respon
               type="checkbox"
               checked={checked1}
               onChange={(e) => setChecked1(e.target.checked)}
-              className="mt-1 w-5 h-5 accent-indigo-600 shrink-0 cursor-pointer"
+              className="mt-1 w-5 h-5 accent-blue-600 shrink-0 cursor-pointer"
               id="check1"
             />
             <div className="text-xs md:text-sm">
@@ -78,7 +77,7 @@ export default function ResponsibilityStage({ onBack, onNext, addToast }: Respon
           <label 
             className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${
               checked2 
-                ? 'bg-indigo-50/50 border-indigo-200 shadow-xs' 
+                ? 'bg-blue-50/50 border-blue-200 shadow-xs' 
                 : 'bg-white border-slate-200 hover:border-slate-300'
             }`}
             id="lbl-check2"
@@ -87,7 +86,7 @@ export default function ResponsibilityStage({ onBack, onNext, addToast }: Respon
               type="checkbox"
               checked={checked2}
               onChange={(e) => setChecked2(e.target.checked)}
-              className="mt-1 w-5 h-5 accent-indigo-600 shrink-0 cursor-pointer"
+              className="mt-1 w-5 h-5 accent-blue-600 shrink-0 cursor-pointer"
               id="check2"
             />
             <div className="text-xs md:text-sm">
@@ -101,7 +100,7 @@ export default function ResponsibilityStage({ onBack, onNext, addToast }: Respon
           <label 
             className={`flex items-start gap-4 p-4 rounded-2xl border transition-all cursor-pointer ${
               checked3 
-                ? 'bg-indigo-50/50 border-indigo-200 shadow-xs' 
+                ? 'bg-blue-50/50 border-blue-200 shadow-xs' 
                 : 'bg-white border-slate-200 hover:border-slate-300'
             }`}
             id="lbl-check3"
@@ -110,7 +109,7 @@ export default function ResponsibilityStage({ onBack, onNext, addToast }: Respon
               type="checkbox"
               checked={checked3}
               onChange={(e) => setChecked3(e.target.checked)}
-              className="mt-1 w-5 h-5 accent-indigo-600 shrink-0 cursor-pointer"
+              className="mt-1 w-5 h-5 accent-blue-600 shrink-0 cursor-pointer"
               id="check3"
             />
             <div className="text-xs md:text-sm">
@@ -137,9 +136,9 @@ export default function ResponsibilityStage({ onBack, onNext, addToast }: Respon
         <button
           onClick={handleNextSubmit}
           disabled={!areAllChecked}
-          className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-extrabold text-sm transition-all shadow-md ${
+          className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-extrabold text-sm transition-all duration-150 active:scale-98 shadow-md ${
             areAllChecked 
-              ? 'bg-[#1e293b] hover:bg-slate-800 text-white hover:shadow-lg cursor-pointer' 
+              ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-lg cursor-pointer' 
               : 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed shadow-none'
           }`}
           id="btn-authorize-form"
