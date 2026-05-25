@@ -1,0 +1,6 @@
+{
+  "name": "Verificador de Catálogo HCG",
+  "description": "Sistema de consulta y verificación de catálogo institucional del Hospital Civil de Guadalajara para evitar duplicidad de insumos médicos y servicios.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
