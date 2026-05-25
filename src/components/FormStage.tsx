@@ -6,6 +6,9 @@ import {
 import { 
   InclusionFormState, AIRecommendation, NotificationToast 
 } from '../types';
+import { googleSignIn, logout, initAuth } from '../firebase';
+import type { User } from 'firebase/auth';
+import { uploadToDrive, appendToSpreadsheet, sendGmailNotification } from '../utils/workspaceServices';
 import { 
   FAMILIAS, UNIDADES_MEDIDA, PARTIDAS_PRESUPUESTALES, UNIDADES_HOSPITALARIAS 
 } from '../data';
@@ -34,6 +37,60 @@ export default function FormStage({
   const [showAiBanner, setShowAiBanner] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  const [googleUser, setGoogleUser] = useState<User | null>(null);
+  const [googleToken, setGoogleToken] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [uploadedPdfFile, setUploadedPdfFile] = useState<File | null>(null);
+
+  const [isSyncingWorkspace, setIsSyncingWorkspace] = useState(false);
+  const [syncStatus, setSyncStatus] = useState({
+    drive: 'idle',
+    sheets: 'idle',
+    gmail: 'idle'
+  });
+
+  useEffect(() => {
+    const unsub = initAuth(
+      (user, token) => {
+        setGoogleUser(user);
+        setGoogleToken(token);
+      },
+      () => {
+        setGoogleUser(null);
+        setGoogleToken(null);
+      }
+    );
+    return () => unsub();
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setIsLoggingIn(true);
+    try {
+      const result = await googleSignIn();
+      if (result) {
+        setGoogleUser(result.user);
+        setGoogleToken(result.accessToken);
+        addToast('Sesión de Google Workspace iniciada con éxito.', 'success');
+      }
+    } catch (err) {
+      console.error('Failed to sign in with Google:', err);
+      addToast('Error al iniciar sesión con Google.', 'error');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleGoogleLogout = async () => {
+    try {
+      await logout();
+      setGoogleUser(null);
+      setGoogleToken(null);
+      addToast('Sesión de Google Workspace cerrada.', 'info');
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
   
   // Exit protection modal state
   const [showExitModal, setShowExitModal] = useState(false);
@@ -157,6 +214,7 @@ export default function FormStage({
           clearInterval(interval);
           setTimeout(() => {
             setUploadProgress(null);
+            setUploadedPdfFile(file); // Store raw File object for Drive
             setFormState(prevData => ({
               ...prevData,
               complementaria: {
@@ -176,6 +234,7 @@ export default function FormStage({
   };
 
   const removePdf = () => {
+    setUploadedPdfFile(null); // Clear raw File object
     setFormState(prev => ({
       ...prev,
       complementaria: {
@@ -243,8 +302,132 @@ export default function FormStage({
     return isValid;
   };
 
-  const handleNextSubmit = () => {
-    if (validateForm()) {
+  const handleNextSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
+    if (!googleUser || !googleToken) {
+      addToast('Por favor, conecte su cuenta institucional de Google para autorizar el reporte.', 'warning');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Confirm mutating operations
+    const confirmed = window.confirm(
+      `¿Confirmas el envío de esta solicitud? Se guardarán los documentos en Google Drive, se añadirá el registro en la hoja de Google Sheets y se enviará la notificación por Gmail.`
+    );
+    if (!confirmed) return;
+
+    // Generate unique folio identification code before upload
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const assignedFolio = `HCG-CAT-2026-${randomNum}`;
+
+    // Temporarily update local state directly
+    setFormState(prev => ({ ...prev, folio: assignedFolio }));
+    setIsSyncingWorkspace(true);
+    setSyncStatus({ drive: 'running', sheets: 'idle', gmail: 'idle' });
+
+    try {
+      // Step 1: Upload to Google Drive (folder 1h_2yEAXoHdOQzhDCBYvvIDjGDr91NZrM)
+      const folderId = '1h_2yEAXoHdOQzhDCBYvvIDjGDr91NZrM';
+      let driveOk = true;
+
+      if (uploadedPdfFile) {
+        const destPdfName = `${assignedFolio}_cotizacion_${uploadedPdfFile.name}`;
+        const fileId = await uploadToDrive(
+          googleToken,
+          folderId,
+          destPdfName,
+          'application/pdf',
+          uploadedPdfFile
+        );
+        if (!fileId) driveOk = false;
+      }
+
+      // Generate text summary
+      const requestTextContent = [
+        `========================================================================`,
+        `                 HOSPITAL CIVIL DE GUADALAJARA`,
+        `     FORMATO OFICIAL DE SOLICITUD DE INCLUSIÓN AL CATÁLOGO`,
+        `========================================================================`,
+        `FOLIO CONTROL: ${assignedFolio}`,
+        `FECHA REGISTRO: ${new Date().toLocaleString('es-MX')}`,
+        ``,
+        `--- 1. DATOS DEL SOLICITANTE ---`,
+        `Nombre: ${formState.solicitante.nombre || 'N/A'}`,
+        `Cargo: ${formState.solicitante.cargo || 'N/A'}`,
+        `Servicio Clínico: ${formState.solicitante.servicio || 'N/A'}`,
+        `Unidad Hospitalaria: ${formState.solicitante.unidadHospitalaria || 'N/A'}`,
+        ``,
+        `--- 2. DETALLES DEL ARTÍCULO ---`,
+        `Descripción Técnica: ${formState.articulo.descripcion || 'N/A'}`,
+        `Familia Almacén: ${formState.articulo.familia || 'N/A'}`,
+        `Unidad de Medida: ${formState.articulo.unidadMedida === 'Otro (Especificar)' ? formState.articulo.unidadMedidaOtro : formState.articulo.unidadMedida}`,
+        `Partida Presupuestal: ${formState.articulo.partida || 'N/A'}`,
+        ``,
+        `--- 3. DETALLES ECONÓMICOS & JUSTIFICACIÓN ---`,
+        `Costo Unitario de Referencia: $${formState.complementaria.costoReferencia || '0.00'} MXN`,
+        `Distribuidor / Proveedor de Referencia: ${formState.complementaria.proveedor || 'N/A'}`,
+        `Soporte PDF Cargado: ${formState.complementaria.pdfNombre || 'N/A'}`,
+        `Justificación Clínica/Logística:`,
+        `"${formState.complementaria.justificacion || 'Sin justificación.'}"`,
+        ``,
+        `========================================================================`,
+        `SISTEMA VERIFICADOR DE CATÁLOGO CENTRAL HCG - CLOUD SERVER ARCHIVE`,
+        `========================================================================`
+      ].join('\r\n');
+
+      const textFileId = await uploadToDrive(
+        googleToken,
+        folderId,
+        `${assignedFolio}_solicitud_registro.txt`,
+        'text/plain',
+        new Blob([requestTextContent], { type: 'text/plain;charset=utf-8' })
+      );
+      if (!textFileId) driveOk = false;
+
+      setSyncStatus(prev => ({ ...prev, drive: driveOk ? 'success' : 'error', sheets: 'running' }));
+
+      // Step 2: Append to Google Sheets
+      const spreadsheetId = '1sI_Yy5A7_HqSH1FY4ftg9EMs-jMw7HpQQFV4Ai7X6z8';
+      const gid = '661900702';
+      const sheetSuccess = await appendToSpreadsheet(
+        googleToken,
+        spreadsheetId,
+        gid,
+        formState,
+        assignedFolio
+      );
+
+      setSyncStatus(prev => ({ ...prev, sheets: sheetSuccess ? 'success' : 'error', gmail: 'running' }));
+
+      // Step 3: Send email notification via Gmail
+      const targetSupportEmail = 'jlangarica@hcg.gob.mx';
+      const emailSuccess = await sendGmailNotification(
+        googleToken,
+        targetSupportEmail,
+        assignedFolio,
+        formState
+      );
+
+      setSyncStatus(prev => ({ ...prev, gmail: emailSuccess ? 'success' : 'error' }));
+
+      if (driveOk && sheetSuccess && emailSuccess) {
+        addToast('Sincronización con Google Workspace exitosa.', 'success');
+      } else {
+        addToast('Sincronización finalizada con algunos avisos o incidentes técnicos.', 'warning');
+      }
+
+      setTimeout(() => {
+        setIsSyncingWorkspace(false);
+        onSubmit();
+      }, 1500);
+
+    } catch (err) {
+      console.error('Workspace syncing error:', err);
+      addToast('La sincronización falló, pero se guardará de forma local temporalmente.', 'warning');
+      setIsSyncingWorkspace(false);
       onSubmit();
     }
   };
@@ -335,6 +518,62 @@ export default function FormStage({
           </div>
         </div>
       )}
+
+      {/* GOOGLE WORKSPACE CONNECTION BANNER */}
+      <div 
+        className={`border rounded-2xl p-5 mb-8 flex flex-col md:flex-row items-center justify-between gap-4 transition-all duration-300 shadow-xs ${
+          googleUser 
+            ? 'border-emerald-200 bg-emerald-50/70 text-slate-800' 
+            : 'border-slate-200 bg-slate-50 text-slate-700'
+        }`}
+        id="workspace-oauth-banner"
+      >
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className={`p-3 rounded-xl shrink-0 ${googleUser ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'}`}>
+            <svg viewBox="0 0 24 24" className="w-6 h-6 fill-current">
+              <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-bold text-sm tracking-tight text-slate-900 font-sans">
+              {googleUser ? 'Conexión de Google Workspace Activa' : 'Habilitar Guardado en Google Workspace'}
+            </h4>
+            <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-normal font-sans">
+              {googleUser 
+                ? `Iniciaste sesión como ${googleUser.email}. Con permiso, archivaremos tu cotización en Google Drive, registraremos la fila en Sheets y notificaremos al Comite en jlangarica@hcg.gob.mx por Gmail autónomamente.`
+                : 'Sincroniza directamente este trámite con la carpeta oficial de Google Drive, la base clínica de Sheets y alertas por Gmail.'
+              }
+            </p>
+          </div>
+        </div>
+
+        <div className="shrink-0 w-full md:w-auto flex justify-end font-sans">
+          {googleUser ? (
+            <button
+              onClick={handleGoogleLogout}
+              className="px-4 py-2 text-xs font-bold border border-rose-300 hover:border-rose-400 text-rose-700 hover:bg-rose-50 rounded-xl transition-all cursor-pointer"
+              id="google-disconnect-btn"
+            >
+              Desconectar Cuenta
+            </button>
+          ) : (
+            <button 
+              onClick={handleGoogleSignIn}
+              disabled={isLoggingIn}
+              className="inline-flex items-center gap-2.5 px-4 py-2 border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer"
+              id="google-connect-btn"
+            >
+              <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-4 h-4 shrink-0">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+              </svg>
+              <span>{isLoggingIn ? 'Conectando...' : 'Acceder con Google'}</span>
+            </button>
+          )}
+        </div>
+      </div>
 
       {/* 2. CORE FORM SEGMENTS */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8" id="form-grid-layout">
@@ -814,6 +1053,98 @@ export default function FormStage({
               >
                 Sí, Descartar Cambios
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* WORKSPACE SYNCHRONIZATION OVERLAY MODAL */}
+      {isSyncingWorkspace && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs" 
+          id="workspace-sync-modal"
+        >
+          <div className="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl border border-slate-100 flex flex-col items-center">
+            {/* Spinning Loader Ring */}
+            <div className="relative w-16 h-16 mb-6">
+              <div className="absolute inset-0 border-4 border-slate-100 rounded-full"></div>
+              <div className="absolute inset-x-0 inset-y-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            </div>
+
+            <h3 className="text-sm font-bold text-slate-900 tracking-tight text-center">
+              Sincronizando con Google Workspace...
+            </h3>
+            <p className="text-[10px] text-slate-400 text-center mt-1.5 mb-6">
+              Por favor, no cierre esta ventana mientras archivamos y registramos su solicitud con autorización.
+            </p>
+
+            {/* Steps Progress */}
+            <div className="w-full space-y-3">
+              {/* Drive step */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className={`p-1.5 rounded-lg shrink-0 ${
+                    syncStatus.drive === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                    syncStatus.drive === 'running' ? 'bg-blue-100 text-blue-600 animate-pulse' :
+                    'bg-slate-100 text-slate-400'
+                  }`}>
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                      <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z" />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Guardando cotización en Google Drive</span>
+                </div>
+                <div>
+                  {syncStatus.drive === 'success' && <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Completado</span>}
+                  {syncStatus.drive === 'running' && <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full animate-bounce">Subiendo...</span>}
+                  {syncStatus.drive === 'idle' && <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full">En espera</span>}
+                  {syncStatus.drive === 'error' && <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">Omitido</span>}
+                </div>
+              </div>
+
+              {/* Sheets step */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className={`p-1.5 rounded-lg shrink-0 ${
+                    syncStatus.sheets === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                    syncStatus.sheets === 'running' ? 'bg-blue-100 text-blue-600 animate-pulse' :
+                    'bg-slate-100 text-slate-400'
+                  }`}>
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                      <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Añadiendo solicitud a Google Sheets</span>
+                </div>
+                <div>
+                  {syncStatus.sheets === 'success' && <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Completado</span>}
+                  {syncStatus.sheets === 'running' && <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full animate-bounce">Añadiendo...</span>}
+                  {syncStatus.sheets === 'idle' && <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full">En espera</span>}
+                  {syncStatus.sheets === 'error' && <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">Error</span>}
+                </div>
+              </div>
+
+              {/* Gmail step */}
+              <div className="flex items-center justify-between p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                <div className="flex items-center gap-3">
+                  <div className={`p-1.5 rounded-lg shrink-0 ${
+                    syncStatus.gmail === 'success' ? 'bg-emerald-100 text-emerald-600' :
+                    syncStatus.gmail === 'running' ? 'bg-blue-100 text-blue-600 animate-pulse' :
+                    'bg-slate-100 text-slate-400'
+                  }`}>
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                      <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-bold text-slate-700">Enviando aviso vía Gmail</span>
+                </div>
+                <div>
+                  {syncStatus.gmail === 'success' && <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">Enviado</span>}
+                  {syncStatus.gmail === 'running' && <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full animate-bounce">Enviando...</span>}
+                  {syncStatus.gmail === 'idle' && <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full">En espera</span>}
+                  {syncStatus.gmail === 'error' && <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">Error</span>}
+                </div>
+              </div>
             </div>
           </div>
         </div>

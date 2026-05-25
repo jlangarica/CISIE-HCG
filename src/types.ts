@@ -44,6 +44,7 @@ export interface InclusionFormState {
   articulo: ArticuloData;
   solicitante: SolicitanteData;
   complementaria: InfoComplementariaData;
+  folio?: string;
 }
 
 export interface NotificationToast {

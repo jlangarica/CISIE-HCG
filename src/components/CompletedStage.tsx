@@ -12,13 +12,15 @@ interface CompletedStageProps {
 }
 
 export default function CompletedStage({ formState, onReset, addToast }: CompletedStageProps) {
-  const [folio, setFolio] = useState('');
+  const [folio, setFolio] = useState(formState.folio || '');
   const [currentDateString, setCurrentDateString] = useState('');
 
   useEffect(() => {
-    // Generate a beautiful, realistic official HCG Request Folio
-    const randomNum = Math.floor(1000 + Math.random() * 9000);
-    setFolio(`HCG-CAT-2026-${randomNum}`);
+    if (!folio) {
+      // Generate a beautiful, realistic official HCG Request Folio fallback
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      setFolio(`HCG-CAT-2026-${randomNum}`);
+    }
 
     // Generate local readable date
     const d = new Date();
